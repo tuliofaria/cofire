@@ -1,56 +1,89 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
+import _ from 'lodash'
 
 const connectBase = ComponentToWrap => options => {
   class ConnectBaseComponent extends Component {
     constructor(props){
       super(props)
       // settings
-      //this[`__${ref}`] = 
       this.dataSource = {
-
       }
       this.state = {
-        //data: []
       }
+    }
+    prepareMapping(mappings, mapping){
+      const newMapping = {
+        settings: mappings[mapping]
+      }
+      newMapping.query = this.db.collection(mappings[mapping].collection)
+      if(mappings[mapping].where){
+        mappings[mapping].where.forEach( where => {
+          newMapping.query = newMapping.query.where(where.field, where.op, where.value)
+        })
+      }
+      this.setState({
+        [mapping]: {
+          isLoading: true,
+          data: []
+        }
+      })
+      newMapping.unsubscribe = newMapping.query.onSnapshot( snapshot => {
+        const newData = []
+        snapshot.forEach( doc => newData.push(doc.data()))
+        this.setState({
+          [mapping]: {
+            isLoading: false,
+            data: newData
+          }
+        })
+        console.log(newData)
+      })
+      this.dataSource[mapping] = newMapping
+    }
+    prepareFirebase(mappings){
+      Object.keys(mappings).forEach( mapping => {
+        if(!this.dataSource[mapping]){
+          this.prepareMapping(mappings, mapping)
+        }else{
+          if(!_.isEqual(this.dataSource[mapping].settings, mappings[mapping])){
+            // unsubscribe
+            try{
+              console.log('unsubscribe '+ mapping)
+              this.dataSource[mapping].unsubscribe()
+            }catch(e){
+              console.log('error on unsubscribe', e)
+            }
+            this.prepareMapping(mappings, mapping)
+          }
+        }
+      })
     }
     componentDidMount(){
       const { firebase } = this.context
       this.db = firebase.firestore()
+      console.log('connectBase componentDidMount', this.props)
+      const mappings = options(this.props)
+      this.prepareFirebase(mappings)
     }
     componentWillReceiveProps(newProps){
-      console.log('componentDidMount', this.props, newProps)
+      console.log('connectBase componentWillReceiveProps', this.props, newProps)
       const mappings = options(newProps)
+      this.prepareFirebase(mappings)
+    }
+    componentWillUnmount(){
+      console.log('will be destroyed', this.dataSource)
+      const mappings = options(this.props)
       Object.keys(mappings).forEach( mapping => {
-        if(!this.dataSource[mapping]){
-          const newMapping = {}
-          newMapping.query = this.db.collection(mappings[mapping].collection)
-          if(mappings[mapping].where){
-            mappings[mapping].where.forEach( where => {
-              newMapping.query = newMapping.query.where(where.field, where.op, where.value)
-            })
+        if(this.dataSource[mapping]){
+          try{
+            console.log('unsubscribe '+ mapping)
+            this.dataSource[mapping].unsubscribe()
+          }catch(e){
+            console.log('error on unsubscribe', e)
           }
-          this.setState({
-            [mapping]: {
-              isLoading: true,
-              data: []
-            }
-          })
-          newMapping.query.onSnapshot( snapshot => {
-            const newData = []
-            snapshot.forEach( doc => newData.push(doc.data()))
-            this.setState({
-              [mapping]: {
-                isLoading: false,
-                data: newData
-              }
-            })
-            console.log(newData)
-          })
         }
       })
-      
-      //console.log('component', options(props))
     }
     render() {
       const { firebase, isAuthing, isAuth, authUser } = this.context
