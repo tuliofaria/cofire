@@ -2,8 +2,8 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import _ from 'lodash'
 
-const connectBase = ComponentToWrap => options => {
-  class ConnectBaseComponent extends Component {
+const cofire = (options, dispatch) => ComponentToWrap => {
+  class CofireComponent extends Component {
     constructor(props){
       super(props)
       // settings
@@ -30,7 +30,10 @@ const connectBase = ComponentToWrap => options => {
       })
       newMapping.unsubscribe = newMapping.query.onSnapshot( snapshot => {
         const newData = []
-        snapshot.forEach( doc => newData.push(doc.data()))
+        snapshot.forEach( doc => newData.push( {
+          id: doc.id,
+          ...doc.data()
+        }))
         this.setState({
           [mapping]: {
             isLoading: false,
@@ -86,28 +89,31 @@ const connectBase = ComponentToWrap => options => {
       })
     }
     render() {
-      const { firebase, isAuthing, isAuth, authUser } = this.context
+      const { firebase, auth } = this.context
       const additionalProps = {
         firebase,
-        isAuthing,
-        isAuth,
-        authUser
+        auth
+      }
+      const dispatchProps = {
+        ...dispatch({ 
+          firestore: firebase.firestore(),
+          auth: firebase.auth(),
+          db: firebase.database()
+        })
       }
       const computedData = {
         ...this.props,
         ...additionalProps,
-        //...options({ ...this.props, ...additionalProps }),
+        ...dispatchProps,
         ...this.state
       }
       return <ComponentToWrap {...computedData} options={options}  />
     }
   }
-  ConnectBaseComponent.contextTypes = {
+  CofireComponent.contextTypes = {
     firebase: PropTypes.object.isRequired,
-    isAuth: PropTypes.bool,
-    authUser: PropTypes.object,
-    isAuthing: PropTypes.bool
+    auth: PropTypes.bool
   }
-  return ConnectBaseComponent
+  return CofireComponent
 }
-export default connectBase
+export default cofire

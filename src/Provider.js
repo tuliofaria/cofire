@@ -10,30 +10,30 @@ export function createProvider(storeKey = 'firebase', subKey) {
         getChildContext() {
           return {
             firebase: this.firebase,
-            isAuthing: this.state.isAuthing,
-            isAuth: this.state.isAuth,
-            authUser: this.state.authUser
+            auth: this.state.auth
           }
         }
 
         constructor(props, context) {
           super(props, context)
           this.state = {
-            isAuth: false,
-            authUser: {},
-            isAuthing: true
+            auth: {
+              isLoading: true
+            }
           }
           this.firebase = firebase.initializeApp(this.props.firebase)
           
-          //this[storeKey] = props.firebase;
         }
 
         componentDidMount(){
           this.firebase.auth().onAuthStateChanged( user => {
-            this.setState({
-              isAuthing: false,
+            const auth = {
+              isLoading: false,
               isAuth: !!(user),
-              authUser: user
+              user
+            }
+            this.setState({
+              auth
             })
           })
         }
@@ -49,9 +49,7 @@ export function createProvider(storeKey = 'firebase', subKey) {
     }
     Provider.childContextTypes = {
         firebase: PropTypes.object.isRequired,
-        isAuth: PropTypes.bool,
-        authUser: PropTypes.object,
-        isAuthing: PropTypes.bool
+        auth: PropTypes.object,
     }
 
     return Provider
