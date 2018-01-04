@@ -1,6 +1,6 @@
 {
   "name": "cofire",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Firebase React bindings in a more declarative way. Just connect your component and you´re ready to go.",
   "main": "build/index.js",
   "peerDependencies": {
