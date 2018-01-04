@@ -45,7 +45,7 @@ import React from 'react'
 import { cofire } from 'cofire'
 import { Link } from 'react-router-dom'
 
-const Outro = ({ auth, data, saveDoc }) => {
+const MyComponent = ({ auth, data, saveDoc }) => {
   return (
     <div>
       <ul>
@@ -83,3 +83,9 @@ export default cofire( props => {
 })(MyComponent)
 
 ```
+
+## What I think is missing?
+* Add support to change values of fields used in queries (Scenario: search for a user. We need to set input value in where clause)
+* Support more Firebase services
+* Add tests
+* Test in React-Native
