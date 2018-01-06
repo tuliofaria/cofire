@@ -23103,7 +23103,222 @@ function createProvider() {
 exports.default = createProvider();
 
 /***/ }),
-/* 130 */,
+/* 130 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = __webpack_require__(128);
+
+var _react2 = _interopRequireDefault(_react);
+
+var _propTypes = __webpack_require__(127);
+
+var _propTypes2 = _interopRequireDefault(_propTypes);
+
+var _lodash = __webpack_require__(250);
+
+var _lodash2 = _interopRequireDefault(_lodash);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var cofire = function cofire(options, dispatch) {
+  return function (ComponentToWrap) {
+    var CofireComponent = function (_Component) {
+      _inherits(CofireComponent, _Component);
+
+      function CofireComponent(props) {
+        _classCallCheck(this, CofireComponent);
+
+        // settings
+        var _this = _possibleConstructorReturn(this, (CofireComponent.__proto__ || Object.getPrototypeOf(CofireComponent)).call(this, props));
+
+        _this.dataSource = {};
+        _this.state = {};
+        return _this;
+      }
+
+      _createClass(CofireComponent, [{
+        key: 'prepareMapping',
+        value: function prepareMapping(mappings, mapping) {
+          var _this2 = this;
+
+          var newMapping = {
+            settings: mappings[mapping]
+          };
+          if (mappings[mapping].ref) {
+            newMapping.ref = this.database.ref(mappings[mapping].ref);
+            this.setState(_defineProperty({}, mapping, {
+              isLoading: true,
+              data: []
+            }));
+            if (mappings[mapping].once) {
+              newMapping.ref.once('value', function (snapshot) {
+                _this2.setState(_defineProperty({}, mapping, {
+                  isLoading: false,
+                  data: snapshot.val()
+                }));
+              });
+            } else {
+              newMapping.ref.on('value', function (snapshot) {
+                _this2.setState(_defineProperty({}, mapping, {
+                  isLoading: false,
+                  data: snapshot.val()
+                }));
+              });
+            }
+          }
+          if (mappings[mapping].collection) {
+            newMapping.query = this.firestore.collection(mappings[mapping].collection);
+            if (mappings[mapping].doc) {
+              newMapping.query = newMapping.query.doc(mappings[mapping].doc);
+            }
+            if (mappings[mapping].where) {
+              mappings[mapping].where.forEach(function (where) {
+                newMapping.query = newMapping.query.where(where.field, where.op, where.value);
+              });
+            } else if (mappings[mapping].order) {
+              // todo
+            }
+            this.setState(_defineProperty({}, mapping, {
+              isLoading: true,
+              data: []
+            }));
+            newMapping.unsubscribe = newMapping.query.onSnapshot(function (snapshot) {
+              var newData = [];
+              if (snapshot.id) {
+                _this2.setState(_defineProperty({}, mapping, {
+                  isLoading: false,
+                  data: _extends({
+                    id: snapshot.id
+                  }, snapshot.data())
+                }));
+              } else {
+                snapshot.forEach(function (doc) {
+                  return newData.push(_extends({
+                    id: doc.id
+                  }, doc.data()));
+                });
+                _this2.setState(_defineProperty({}, mapping, {
+                  isLoading: false,
+                  data: newData
+                }));
+              }
+
+              console.log(newData);
+            });
+            this.dataSource[mapping] = newMapping;
+          }
+        }
+      }, {
+        key: 'prepareFirebase',
+        value: function prepareFirebase(mappings) {
+          var _this3 = this;
+
+          Object.keys(mappings).forEach(function (mapping) {
+            if (!_this3.dataSource[mapping]) {
+              _this3.prepareMapping(mappings, mapping);
+            } else {
+              if (!_lodash2.default.isEqual(_this3.dataSource[mapping].settings, mappings[mapping])) {
+                // unsubscribe
+                try {
+                  console.log('unsubscribe ' + mapping);
+                  _this3.dataSource[mapping].unsubscribe();
+                } catch (e) {
+                  console.log('error on unsubscribe', e);
+                }
+                _this3.prepareMapping(mappings, mapping);
+              }
+            }
+          });
+        }
+      }, {
+        key: 'componentDidMount',
+        value: function componentDidMount() {
+          var firebase = this.context.firebase;
+
+          this.firestore = firebase.firestore();
+          this.database = firebase.database();
+          console.log('connectBase componentDidMount', this.props);
+          var mappings = options(this.props);
+          this.prepareFirebase(mappings);
+        }
+      }, {
+        key: 'componentWillReceiveProps',
+        value: function componentWillReceiveProps(newProps) {
+          console.log('connectBase componentWillReceiveProps', this.props, newProps);
+          var mappings = options(newProps);
+          this.prepareFirebase(mappings);
+        }
+      }, {
+        key: 'componentWillUnmount',
+        value: function componentWillUnmount() {
+          var _this4 = this;
+
+          console.log('will be destroyed', this.dataSource);
+          var mappings = options(this.props);
+          Object.keys(mappings).forEach(function (mapping) {
+            if (_this4.dataSource[mapping]) {
+              try {
+                console.log('unsubscribe ' + mapping);
+                _this4.dataSource[mapping].unsubscribe();
+              } catch (e) {
+                console.log('error on unsubscribe', e);
+              }
+            }
+          });
+        }
+      }, {
+        key: 'render',
+        value: function render() {
+          var _context = this.context,
+              firebase = _context.firebase,
+              auth = _context.auth;
+
+          var additionalProps = {
+            firebase: firebase,
+            auth: auth
+          };
+          var dispatchProps = _extends({}, dispatch({
+            firestore: firebase.firestore(),
+            database: firebase.database(),
+            auth: firebase.auth()
+          }));
+          var computedData = _extends({}, this.props, additionalProps, dispatchProps, this.state);
+          return _react2.default.createElement(ComponentToWrap, _extends({}, computedData, { options: options }));
+        }
+      }]);
+
+      return CofireComponent;
+    }(_react.Component);
+
+    CofireComponent.contextTypes = {
+      firebase: _propTypes2.default.object.isRequired,
+      auth: _propTypes2.default.bool
+    };
+    return CofireComponent;
+  };
+};
+exports.default = cofire;
+
+/***/ }),
 /* 131 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
@@ -43713,7 +43928,7 @@ var _Provider = __webpack_require__(129);
 
 var _Provider2 = _interopRequireDefault(_Provider);
 
-var _cofire = __webpack_require__(259);
+var _cofire = __webpack_require__(130);
 
 var _cofire2 = _interopRequireDefault(_cofire);
 
@@ -62281,182 +62496,6 @@ module.exports = function(module) {
 	return module;
 };
 
-
-/***/ }),
-/* 259 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-var _react = __webpack_require__(128);
-
-var _react2 = _interopRequireDefault(_react);
-
-var _propTypes = __webpack_require__(127);
-
-var _propTypes2 = _interopRequireDefault(_propTypes);
-
-var _lodash = __webpack_require__(250);
-
-var _lodash2 = _interopRequireDefault(_lodash);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-var cofire = function cofire(options, dispatch) {
-  return function (ComponentToWrap) {
-    var CofireComponent = function (_Component) {
-      _inherits(CofireComponent, _Component);
-
-      function CofireComponent(props) {
-        _classCallCheck(this, CofireComponent);
-
-        // settings
-        var _this = _possibleConstructorReturn(this, (CofireComponent.__proto__ || Object.getPrototypeOf(CofireComponent)).call(this, props));
-
-        _this.dataSource = {};
-        _this.state = {};
-        return _this;
-      }
-
-      _createClass(CofireComponent, [{
-        key: 'prepareMapping',
-        value: function prepareMapping(mappings, mapping) {
-          var _this2 = this;
-
-          var newMapping = {
-            settings: mappings[mapping]
-          };
-          newMapping.query = this.db.collection(mappings[mapping].collection);
-          if (mappings[mapping].where) {
-            mappings[mapping].where.forEach(function (where) {
-              newMapping.query = newMapping.query.where(where.field, where.op, where.value);
-            });
-          }
-          this.setState(_defineProperty({}, mapping, {
-            isLoading: true,
-            data: []
-          }));
-          newMapping.unsubscribe = newMapping.query.onSnapshot(function (snapshot) {
-            var newData = [];
-            snapshot.forEach(function (doc) {
-              return newData.push(_extends({
-                id: doc.id
-              }, doc.data()));
-            });
-            _this2.setState(_defineProperty({}, mapping, {
-              isLoading: false,
-              data: newData
-            }));
-            console.log(newData);
-          });
-          this.dataSource[mapping] = newMapping;
-        }
-      }, {
-        key: 'prepareFirebase',
-        value: function prepareFirebase(mappings) {
-          var _this3 = this;
-
-          Object.keys(mappings).forEach(function (mapping) {
-            if (!_this3.dataSource[mapping]) {
-              _this3.prepareMapping(mappings, mapping);
-            } else {
-              if (!_lodash2.default.isEqual(_this3.dataSource[mapping].settings, mappings[mapping])) {
-                // unsubscribe
-                try {
-                  console.log('unsubscribe ' + mapping);
-                  _this3.dataSource[mapping].unsubscribe();
-                } catch (e) {
-                  console.log('error on unsubscribe', e);
-                }
-                _this3.prepareMapping(mappings, mapping);
-              }
-            }
-          });
-        }
-      }, {
-        key: 'componentDidMount',
-        value: function componentDidMount() {
-          var firebase = this.context.firebase;
-
-          this.db = firebase.firestore();
-          console.log('connectBase componentDidMount', this.props);
-          var mappings = options(this.props);
-          this.prepareFirebase(mappings);
-        }
-      }, {
-        key: 'componentWillReceiveProps',
-        value: function componentWillReceiveProps(newProps) {
-          console.log('connectBase componentWillReceiveProps', this.props, newProps);
-          var mappings = options(newProps);
-          this.prepareFirebase(mappings);
-        }
-      }, {
-        key: 'componentWillUnmount',
-        value: function componentWillUnmount() {
-          var _this4 = this;
-
-          console.log('will be destroyed', this.dataSource);
-          var mappings = options(this.props);
-          Object.keys(mappings).forEach(function (mapping) {
-            if (_this4.dataSource[mapping]) {
-              try {
-                console.log('unsubscribe ' + mapping);
-                _this4.dataSource[mapping].unsubscribe();
-              } catch (e) {
-                console.log('error on unsubscribe', e);
-              }
-            }
-          });
-        }
-      }, {
-        key: 'render',
-        value: function render() {
-          var _context = this.context,
-              firebase = _context.firebase,
-              auth = _context.auth;
-
-          var additionalProps = {
-            firebase: firebase,
-            auth: auth
-          };
-          var dispatchProps = _extends({}, dispatch({
-            firestore: firebase.firestore(),
-            auth: firebase.auth(),
-            db: firebase.database()
-          }));
-          var computedData = _extends({}, this.props, additionalProps, dispatchProps, this.state);
-          return _react2.default.createElement(ComponentToWrap, _extends({}, computedData, { options: options }));
-        }
-      }]);
-
-      return CofireComponent;
-    }(_react.Component);
-
-    CofireComponent.contextTypes = {
-      firebase: _propTypes2.default.object.isRequired,
-      auth: _propTypes2.default.bool
-    };
-    return CofireComponent;
-  };
-};
-exports.default = cofire;
 
 /***/ })
 /******/ ]);
